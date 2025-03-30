@@ -57,11 +57,8 @@
       .difficulty-bar-2 { height: 0.75rem; }
       .difficulty-bar-3 { height: 1rem; } /* Tallest */
 
-       /* --- MODIFIED: Removed min-height --- */
        #card-grid a {
-           /* min-height: 290px; /* Removed this line */
-           /* Add overflow hidden if line-clamp doesn't work perfectly alone */
-           /* overflow: hidden; */
+           /* No min-height needed, let cards size naturally */
        }
 
        /* Explicitly set display for line-clamp for broader compatibility */
@@ -77,6 +74,9 @@
            -webkit-line-clamp: 4;
        }
 
+       /* --- MODIFIED: Custom Tooltip Style --- */
+       /* Using Tailwind classes in JS now, but could define base styles here */
+       /* .custom-tooltip { ... } */
 
     </style>
     
@@ -164,18 +164,38 @@
         // --- Functions ---
 
         /**
-         * Renders the difficulty indicator bars based on the level.
+         * Renders the difficulty indicator bars with a custom tooltip.
          * @param {number} difficulty - The difficulty level (1, 2, or 3).
-         * @returns {string} HTML string for the difficulty bars.
+         * @returns {string} HTML string for the difficulty bars container.
          */
         function renderDifficultyBars(difficulty) {
             let barsHtml = '';
+            let difficultyLabel = 'Unknown';
+            if (difficulty === 1) {
+                difficultyLabel = 'Beginner';
+            } else if (difficulty === 2) {
+                difficultyLabel = 'Intermediate';
+            } else if (difficulty === 3) {
+                difficultyLabel = 'Advanced';
+            }
+
             for (let i = 1; i <= 3; i++) {
                 const isActive = i <= difficulty ? 'active' : '';
                 barsHtml += `<div class="difficulty-bar difficulty-bar-${i} ${isActive}"></div>`;
             }
-            // Container to align bars at the bottom and provide consistent height
-            return `<div class="flex items-end h-4" aria-label="Difficulty level ${difficulty} out of 3">${barsHtml}</div>`;
+
+            // --- MODIFIED: Added relative parent and absolute tooltip span ---
+            // Use Tailwind 'group' for hover effect
+            return `
+                <div class="relative group">
+                    <div class="flex items-end h-4" aria-label="Difficulty level ${difficulty} out of 3">
+                        ${barsHtml}
+                    </div>
+                    <span class="absolute bottom-full left-0 mb-1.5 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-in-out bg-gray-700 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-10 pointer-events-none">
+                        ${difficultyLabel}
+                    </span>
+                </div>
+            `;
         }
 
 
@@ -419,3 +439,4 @@
 
 </body>
 </html>
+<!-- End of index.html -->
