@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Catalog</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+      @font-face {
+        font-family: 'LucideIcons';
+        /* Updated CDN link for lucide font */
+        src: url(https://cdn.jsdelivr.net/npm/lucide-static@0.473.0/font/lucide.ttf) format('truetype');
+      }
+      .lucide {
+        font-family: 'LucideIcons';
+        font-size: 1.25rem; /* Adjust size as needed */
+        line-height: 1;
+        display: inline-block; /* Prevents layout shifts */
+        vertical-align: middle; /* Aligns icon nicely with text */
+      }
+      /* Basic styles for pagination buttons */
+      .pagination-button {
+        padding: 0.5rem 1rem;
+        border: 1px solid #e5e7eb; /* gray-200 */
+        border-radius: 0.375rem; /* rounded-md */
+        background-color: white;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        font-size: 0.875rem; /* text-sm */
+      }
+      .pagination-button:hover:not(:disabled) {
+        background-color: #f3f4f6; /* gray-100 */
+      }
+      .pagination-button.active {
+        background-color: #3b82f6; /* blue-500 */
+        color: white;
+        border-color: #3b82f6; /* blue-500 */
+      }
+      .pagination-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+       /* Difficulty Bar Styles */
+      .difficulty-bar {
+          width: 0.3rem; /* Adjust width */
+          border-radius: 0.125rem; /* rounded-sm */
+          background-color: #e5e7eb; /* gray-200 - inactive color */
+          margin-right: 2px; /* Spacing between bars */
+          transition: background-color 0.2s; /* Smooth transition */
+      }
+      .difficulty-bar.active {
+          background-color: #3b82f6; /* blue-500 - active color */
+      }
+      .difficulty-bar-1 { height: 0.5rem; } /* Smallest */
+      .difficulty-bar-2 { height: 0.75rem; }
+      .difficulty-bar-3 { height: 1rem; } /* Tallest */
+
+       /* --- MODIFIED: Removed min-height --- */
+       #card-grid a {
+           /* min-height: 290px; /* Removed this line */
+           /* Add overflow hidden if line-clamp doesn't work perfectly alone */
+           /* overflow: hidden; */
+       }
+
+       /* Explicitly set display for line-clamp for broader compatibility */
+       .line-clamp-2, .line-clamp-4 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+       }
+       .line-clamp-2 {
+           -webkit-line-clamp: 2;
+       }
+        .line-clamp-4 {
+           -webkit-line-clamp: 4;
+       }
+
+
+    </style>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'], // Use Inter font
+                    },
+                }
+            }
+            // plugins: [ // Not needed with CDN usually, but good to know
+            //     require('@tailwindcss/line-clamp'),
+            // ],
+        }
+    </script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-50 font-sans antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <div class="mb-6">
+            <input
+                type="search"
+                id="search-box"
+                placeholder="Search courses by title, category, or description..."
+                aria-label="Search courses"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow duration-200"
+            />
+        </div>
+
+        <div id="card-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            <p id="loading-message" class="text-gray-500 col-span-full text-center">Loading courses...</p>
+        </div>
+
+        <div id="pagination-controls" class="flex justify-center items-center space-x-1 sm:space-x-2 mt-8">
+            </div>
+    </div>
+
+    <script>
+        // --- Application State ---
+        let currentPage = 1;
+        const itemsPerPage = 8; // Show 8 cards per page
+        let courseData = []; // Holds the master list of courses (fetched or dummy)
+        let currentFilteredData = []; // Holds the currently filtered data for display
+
+        // --- DOM Elements ---
+        const cardGrid = document.getElementById('card-grid');
+        const paginationControls = document.getElementById('pagination-controls');
+        const searchBox = document.getElementById('search-box');
+        const loadingMessage = document.getElementById('loading-message');
+
+        // --- Fallback Dummy Data ---
+        // Used if the API fetch fails or as a placeholder during development.
+        const dummyData = [
+             // Card 1 (Long title/desc)
+             { id: 1, category: "Artificial Intelligence (AI)", title: "Using Generative AI to Land Your Next Job and Excel in Interviews with Advanced Prompts", description: "Improve your search, optimize your resume, practice for the interview, and learn advanced techniques for interacting with AI during the hiring process. This course covers everything from basic setup to complex scenario handling.", authorName: "Ben Gold", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=BG", dateTime: "April 1 • 10am-Noon", difficulty: 2, link: "#" },
+             { id: 2, category: "Web Development", title: "Introduction to React Hooks", description: "Learn the basics of useState, useEffect, and other essential React Hooks.", authorName: "Jane Doe", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=JD", dateTime: "April 5 • 1pm-3pm", difficulty: 1, link: "#" },
+             { id: 3, category: "Data Science", title: "Advanced Python for Data Analysis", description: "Master pandas, NumPy, and advanced data manipulation techniques.", authorName: "Carlos Ray", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=CR", dateTime: "April 10 • 9am-12pm", difficulty: 3, link: "#" },
+             { id: 4, category: "Cloud Computing", title: "Deploying Applications with Docker", description: "Containerize your applications and manage them effectively using Docker.", authorName: "Aisha Khan", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=AK", dateTime: "April 12 • 2pm-4pm", difficulty: 2, link: "#" },
+             { id: 5, category: "Web Development", title: "Tailwind CSS Fundamentals", description: "Build modern user interfaces rapidly with Tailwind CSS utility classes.", authorName: "Mike Swift", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=MS", dateTime: "April 15 • 11am-1pm", difficulty: 1, link: "#" },
+             // Card 6 (Long description)
+             { id: 6, category: "Artificial Intelligence (AI)", title: "Understanding Neural Networks", description: "A deep dive into the architecture and mathematics behind neural networks, covering feedforward networks, convolutional networks (CNNs) for image processing, and recurrent networks (RNNs) for sequence data analysis. Includes practical examples.", authorName: "Dr. Evelyn Reed", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=ER", dateTime: "April 18 • 10am-1pm", difficulty: 3, link: "#" },
+             { id: 7, category: "Project Management", title: "Agile Scrum Basics", description: "Learn the fundamentals of the Scrum framework for agile project management.", authorName: "Sam Chen", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=SC", dateTime: "April 20 • 9am-11am", difficulty: 1, link: "#" },
+             { id: 8, category: "Data Science", title: "Data Visualization with D3.js", description: "Create interactive and compelling data visualizations for the web.", authorName: "Olivia Green", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=OG", dateTime: "April 22 • 1pm-4pm", difficulty: 3, link: "#" },
+             { id: 9, category: "Web Development", title: "Node.js for Beginners", description: "Build backend applications and APIs using Node.js and Express.", authorName: "Tom Harris", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=TH", dateTime: "April 25 • 6pm-8pm", difficulty: 2, link: "#" },
+             { id: 10, category: "Cybersecurity", title: "Introduction to Ethical Hacking", description: "Understand common vulnerabilities and how to test for them ethically.", authorName: "Kenji Tanaka", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=KT", dateTime: "April 28 • 10am-12pm", difficulty: 2, link: "#" },
+             { id: 11, category: "Mobile Development", title: "Building iOS Apps with Swift", description: "An introduction to iOS development using Swift and Xcode.", authorName: "Chloe Davis", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=CD", dateTime: "May 1 • 2pm-5pm", difficulty: 2, link: "#" },
+             { id: 12, category: "Marketing", title: "Digital Marketing Strategies", description: "Learn SEO, SEM, and social media marketing techniques.", authorName: "Leo Martinez", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=LM", dateTime: "May 3 • 9am-11am", difficulty: 1, link: "#" },
+             { id: 13, category: "Design", title: "UI/UX Design Principles", description: "Fundamentals of user interface and user experience design.", authorName: "Sophia Rodriguez", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=SR", dateTime: "May 5 • 1pm-4pm", difficulty: 2, link: "#" },
+             { id: 14, category: "Cloud Computing", title: "AWS Certified Cloud Practitioner Prep", description: "Prepare for the AWS CCP exam with this comprehensive overview.", authorName: "Ethan Wright", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=EW", dateTime: "May 8 • 10am-1pm", difficulty: 2, link: "#" },
+             { id: 15, category: "Data Science", title: "Machine Learning Foundations", description: "Introduction to core machine learning concepts and algorithms.", authorName: "Isabella Walker", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=IW", dateTime: "May 10 • 3pm-5pm", difficulty: 3, link: "#" },
+             { id: 16, category: "Web Development", title: "Getting Started with Vue.js", description: "Learn the basics of the progressive JavaScript framework Vue.js.", authorName: "Noah Allen", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=NA", dateTime: "May 12 • 11am-1pm", difficulty: 1, link: "#" },
+             { id: 17, category: "Cybersecurity", title: "Network Security Essentials", description: "Understand firewalls, VPNs, and intrusion detection systems.", authorName: "Mia Young", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=MY", dateTime: "May 15 • 9am-12pm", difficulty: 3, link: "#" },
+             { id: 18, category: "Business", title: "Introduction to Financial Accounting", description: "Learn the basics of recording and reporting financial transactions.", authorName: "Liam King", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=LK", dateTime: "May 17 • 6pm-8pm", difficulty: 1, link: "#" },
+             { id: 19, category: "Design", title: "Introduction to Adobe Photoshop", description: "Master the fundamental tools and techniques in Photoshop.", authorName: "Ava Scott", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=AS", dateTime: "May 20 • 10am-12pm", difficulty: 1, link: "#" },
+             { id: 20, category: "Artificial Intelligence (AI)", title: "Natural Language Processing Basics", description: "Explore techniques for computers to understand human language.", authorName: "Jackson Green", authorImage: "https://placehold.co/40x40/E2E8F0/4A5568?text=JG", dateTime: "May 22 • 1pm-3pm", difficulty: 2, link: "#" }
+        ];
+
+        // --- Functions ---
+
+        /**
+         * Renders the difficulty indicator bars based on the level.
+         * @param {number} difficulty - The difficulty level (1, 2, or 3).
+         * @returns {string} HTML string for the difficulty bars.
+         */
+        function renderDifficultyBars(difficulty) {
+            let barsHtml = '';
+            for (let i = 1; i <= 3; i++) {
+                const isActive = i <= difficulty ? 'active' : '';
+                barsHtml += `<div class="difficulty-bar difficulty-bar-${i} ${isActive}"></div>`;
+            }
+            // Container to align bars at the bottom and provide consistent height
+            return `<div class="flex items-end h-4" aria-label="Difficulty level ${difficulty} out of 3">${barsHtml}</div>`;
+        }
+
+
+        /**
+         * Renders the cards for the current page.
+         * @param {Array} dataToRender - The array of card data to display (usually filtered).
+         * @param {number} page - The current page number.
+         */
+        function renderCards(dataToRender, page) {
+            cardGrid.innerHTML = ''; // Clear existing cards or loading message
+            // Ensure loadingMessage element exists before trying to remove it
+            const loadingMsgElement = document.getElementById('loading-message');
+            if (loadingMsgElement) loadingMsgElement.remove();
+
+            if (!dataToRender || dataToRender.length === 0) {
+                 cardGrid.innerHTML = '<p class="text-gray-500 col-span-full text-center py-10">No courses found matching your criteria.</p>';
+                 return;
+            }
+
+            // Calculate start and end index for pagination
+            const startIndex = (page - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedData = dataToRender.slice(startIndex, endIndex);
+
+            paginatedData.forEach(card => {
+                const cardElement = document.createElement('a'); // Use anchor tag for clickability
+                cardElement.href = card.link || '#'; // Use '#' as fallback link
+                cardElement.target = "_blank";
+                cardElement.rel = "noopener noreferrer";
+                // Added flex-grow to make inner div take available space
+                // Added h-full to ensure the anchor tag takes full height determined by flex container
+                cardElement.className = 'bg-white rounded-lg shadow p-4 flex flex-col border border-gray-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition-all duration-200 h-full';
+
+                cardElement.innerHTML = `
+                    <div class="flex-grow">
+                        <div class="flex items-center mb-2">
+                            ${renderDifficultyBars(card.difficulty)}
+                            <span class="ml-2 text-xs font-semibold text-blue-600 uppercase tracking-wider">${card.category}</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-1 leading-tight line-clamp-2" title="${card.title}">${card.title}</h3>
+                        <p class="text-sm text-gray-600 mb-4 line-clamp-4">${card.description}</p>
+                    </div>
+                    <div class="mt-auto pt-4 border-t border-gray-100">
+                        <div class="flex items-center justify-between text-sm text-gray-500">
+                             <div class="flex items-center min-w-0 mr-2">
+                                <img src="${card.authorImage}" alt="${card.authorName}" class="w-8 h-8 rounded-full mr-2 object-cover flex-shrink-0" onerror="this.src='https://placehold.co/40x40/E2E8F0/4A5568?text=??'; this.onerror=null;">
+                                <span class="truncate" title="${card.authorName}">${card.authorName}</span>
+                            </div>
+                            <div class="flex items-center flex-shrink-0">
+                                <span class="lucide mr-1" aria-hidden="true">&#xe91d;</span>
+                                <span class="whitespace-nowrap">${card.dateTime}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                cardGrid.appendChild(cardElement);
+            });
+        }
+
+        /**
+         * Renders the pagination controls.
+         * @param {number} totalItems - Total number of items in the filtered list.
+         * @param {number} itemsPerPage - Number of items per page.
+         * @param {number} currentPage - The currently active page.
+         * @param {Array} filteredData - The data set pagination is being rendered for.
+         */
+        function renderPagination(totalItems, itemsPerPage, currentPage, filteredData) {
+            paginationControls.innerHTML = ''; // Clear existing controls
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+            if (totalPages <= 1) {
+                return; // No pagination needed if 1 page or less
+            }
+
+            // Helper function to create buttons
+            const createButton = (text, pageNum, isDisabled = false, isActive = false) => {
+                 const button = document.createElement('button');
+                 button.textContent = text;
+                 button.className = 'pagination-button';
+                 button.disabled = isDisabled;
+                 if (isActive) {
+                     button.classList.add('active');
+                     button.setAttribute('aria-current', 'page');
+                 }
+                 button.addEventListener('click', () => {
+                     // Update currentPage directly in the main scope
+                     window.currentPage = pageNum; // Use window scope or adjust scope as needed
+                     renderCards(filteredData, window.currentPage);
+                     // Pass the updated currentPage to renderPagination
+                     renderPagination(totalItems, itemsPerPage, window.currentPage, filteredData);
+                 });
+                 return button;
+            }
+
+            // Previous Button
+            paginationControls.appendChild(
+                createButton('Previous', currentPage - 1, currentPage === 1)
+            );
+
+            // Page Number Buttons
+            // Logic for simplified pagination (e.g., show first, last, current +/- 1, and ellipsis)
+            const maxPagesToShow = 5; // Adjust number of visible page buttons
+            let startPage, endPage;
+
+            if (totalPages <= maxPagesToShow) {
+                startPage = 1;
+                endPage = totalPages;
+            } else {
+                const maxPagesBeforeCurrent = Math.floor((maxPagesToShow - 3) / 2); // -3 for first, last, ellipsis
+                const maxPagesAfterCurrent = Math.ceil((maxPagesToShow - 3) / 2);
+
+                if (currentPage <= maxPagesBeforeCurrent + 1) {
+                    startPage = 1;
+                    endPage = maxPagesToShow - 1; // Show first pages + ellipsis + last page
+                } else if (currentPage + maxPagesAfterCurrent >= totalPages) {
+                    startPage = totalPages - (maxPagesToShow - 2); // Show first + ellipsis + last pages
+                    endPage = totalPages;
+                } else {
+                    startPage = currentPage - maxPagesBeforeCurrent;
+                    endPage = currentPage + maxPagesAfterCurrent;
+                }
+            }
+
+            // Always show the first page
+            if (startPage > 1) {
+                paginationControls.appendChild(createButton(1, 1, false, 1 === currentPage));
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.className = 'px-3 py-2 text-gray-500';
+                    paginationControls.appendChild(ellipsis);
+                }
+            }
+
+            // Render page numbers in the calculated range
+            for (let i = startPage; i <= endPage; i++) {
+                 if (i > 0 && i <= totalPages) { // Ensure page number is valid
+                    paginationControls.appendChild(
+                        createButton(i, i, false, i === currentPage)
+                    );
+                 }
+            }
+
+            // Always show the last page
+            if (endPage < totalPages) {
+                 if (endPage < totalPages - 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.className = 'px-3 py-2 text-gray-500';
+                    paginationControls.appendChild(ellipsis);
+                }
+                paginationControls.appendChild(createButton(totalPages, totalPages, false, totalPages === currentPage));
+            }
+
+
+             // Next Button
+             paginationControls.appendChild(
+                 createButton('Next', currentPage + 1, currentPage === totalPages)
+             );
+        }
+
+        /**
+         * Filters data based on search input and triggers re-render.
+         */
+        function handleSearch() {
+            const searchTerm = searchBox.value.toLowerCase().trim();
+
+            // Filter the master courseData list
+            currentFilteredData = courseData.filter(card => {
+                // Ensure properties exist before calling toLowerCase
+                const titleMatch = card.title && card.title.toLowerCase().includes(searchTerm);
+                const categoryMatch = card.category && card.category.toLowerCase().includes(searchTerm);
+                const descriptionMatch = card.description && card.description.toLowerCase().includes(searchTerm);
+                return titleMatch || categoryMatch || descriptionMatch;
+            });
+
+
+            currentPage = 1; // Reset to first page after search
+            renderCards(currentFilteredData, currentPage);
+            renderPagination(currentFilteredData.length, itemsPerPage, currentPage, currentFilteredData);
+        }
+
+        /**
+         * Fetches data from API and initializes the application.
+         */
+        async function initializeApp() {
+            // --- Data Fetching ---
+            // In a real application, you would fetch data from an API endpoint here.
+            // Example using fetch:
+            const apiUrl = 'https://api.example.com/courses'; // Replace with your actual API endpoint
+            console.log(`Attempting to fetch data from: ${apiUrl}`); // Log API URL
+
+            try {
+                // Simulate API call delay (remove in production)
+                 // await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Replace with actual fetch call
+                // const response = await fetch(apiUrl);
+                // if (!response.ok) {
+                //     throw new Error(`HTTP error! status: ${response.status}`);
+                // }
+                // const fetchedData = await response.json();
+
+                // Simulate successful fetch using dummy data for now
+                const fetchedData = dummyData; // Remove this line when using real fetch
+                console.log("Using fallback dummy data for initialization.");
+
+
+                courseData = fetchedData; // Store fetched data in the master list
+                currentFilteredData = [...courseData]; // Initialize filtered data
+
+            } catch (error) {
+                console.error('Error during initialization:', error);
+                // Fallback to dummy data if fetch fails or error occurs
+                console.log('Falling back to dummy data due to error.');
+                courseData = [...dummyData]; // Ensure fallback on error
+                currentFilteredData = [...courseData];
+                 // Ensure loadingMessage element exists before trying to remove it
+                 const loadingMsgElement = document.getElementById('loading-message');
+                 if (loadingMsgElement) loadingMsgElement.remove();
+                 cardGrid.innerHTML = '<p class="text-red-500 col-span-full text-center py-10">Could not load course data. Please try again later.</p>';
+
+            } finally {
+                 // Initial Render (happens after fetch succeeds or fails and falls back)
+                 renderCards(currentFilteredData, currentPage);
+                 renderPagination(currentFilteredData.length, itemsPerPage, currentPage, currentFilteredData);
+            }
+        }
+
+
+        // --- Initial Load ---
+        // Add event listener for the search box
+        searchBox.addEventListener('input', handleSearch);
+
+        // Initialize the app (fetch data and perform initial render)
+        // Use DOMContentLoaded to ensure the DOM is ready before executing the script
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+
+    </script>
+
+</body>
+</html>
